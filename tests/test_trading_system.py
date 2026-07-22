@@ -6,7 +6,6 @@ Run with: pytest tests/ -v
 import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import patch, MagicMock
 import sys
 import os
 
@@ -14,15 +13,23 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
 from main import (
-    TA, SignalEngine, SignalType, StrategyName, PaperPortfolio,
-    RiskManager, RiskLimits, OrderRequest, OrderSide, OrderStatus,
-    Backtester, BacktestRequest,
+    TA,
+    SignalEngine,
+    SignalType,
+    StrategyName,
+    PaperPortfolio,
+    RiskManager,
+    RiskLimits,
+    OrderRequest,
+    OrderSide,
+    OrderStatus,
 )
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  Fixtures
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 @pytest.fixture
 def trending_up():
@@ -77,6 +84,7 @@ def paper_portfolio():
 #  Technical Analysis Tests
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class TestTA:
     def test_sma_length(self, trending_up):
         sma = TA.sma(trending_up, 20)
@@ -94,7 +102,6 @@ class TestTA:
         sma = TA.sma(trending_up, 20)
         ema = TA.ema(trending_up, 20)
         # In an uptrend, EMA should be above SMA (reacts faster)
-        last_20 = slice(-20, None)
         assert ema.iloc[-1] > sma.iloc[-1]
 
     def test_rsi_bounded(self, trending_up):
@@ -141,6 +148,7 @@ class TestTA:
 #  Signal Engine Tests
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class TestSignalEngine:
     def test_ma_crossover_uptrend(self, trending_up):
         signal, strength, reason, indicators = SignalEngine.ma_crossover(trending_up)
@@ -154,7 +162,9 @@ class TestSignalEngine:
         assert strength < 0
 
     def test_rsi_reversion_oversold(self, oversold_series):
-        signal, strength, reason, indicators = SignalEngine.rsi_reversion(oversold_series)
+        signal, strength, reason, indicators = SignalEngine.rsi_reversion(
+            oversold_series
+        )
         # Should detect oversold condition
         assert "rsi" in indicators
         rsi_val = indicators["rsi"]
@@ -163,7 +173,9 @@ class TestSignalEngine:
             assert strength > 0
 
     def test_bollinger_breakout(self, trending_up):
-        signal, strength, reason, indicators = SignalEngine.bollinger_breakout(trending_up)
+        signal, strength, reason, indicators = SignalEngine.bollinger_breakout(
+            trending_up
+        )
         assert "bb_position" in indicators
         assert "bb_upper" in indicators
         assert "bb_lower" in indicators
@@ -199,6 +211,7 @@ class TestSignalEngine:
 #  Paper Trading Tests
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class TestPaperPortfolio:
     def test_initial_state(self, paper_portfolio):
         state = paper_portfolio.get_state()
@@ -208,7 +221,9 @@ class TestPaperPortfolio:
         assert state.total_pnl == 0
 
     def test_buy_order(self, paper_portfolio):
-        order = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test")
+        order = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test"
+        )
         result = paper_portfolio.execute_order(order, 150.0, "Technology")
 
         assert result.status == OrderStatus.FILLED
@@ -220,11 +235,15 @@ class TestPaperPortfolio:
 
     def test_sell_order(self, paper_portfolio):
         # First buy
-        buy = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test")
+        buy = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test"
+        )
         paper_portfolio.execute_order(buy, 150.0, "Technology")
 
         # Then sell
-        sell = OrderRequest(ticker="AAPL", side=OrderSide.SELL, quantity=10, reason="test")
+        sell = OrderRequest(
+            ticker="AAPL", side=OrderSide.SELL, quantity=10, reason="test"
+        )
         result = paper_portfolio.execute_order(sell, 160.0, "Technology")
 
         assert result.status == OrderStatus.FILLED
@@ -235,23 +254,31 @@ class TestPaperPortfolio:
         buy = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=5, reason="test")
         paper_portfolio.execute_order(buy, 150.0, "Technology")
 
-        sell = OrderRequest(ticker="AAPL", side=OrderSide.SELL, quantity=10, reason="test")
+        sell = OrderRequest(
+            ticker="AAPL", side=OrderSide.SELL, quantity=10, reason="test"
+        )
         result = paper_portfolio.execute_order(sell, 150.0, "Technology")
 
         assert result.status == OrderStatus.REJECTED
 
     def test_insufficient_cash_rejected(self, paper_portfolio):
         # Try to buy more than we can afford
-        order = OrderRequest(ticker="BRK.A", side=OrderSide.BUY, quantity=1000, reason="test")
+        order = OrderRequest(
+            ticker="BRK.A", side=OrderSide.BUY, quantity=1000, reason="test"
+        )
         result = paper_portfolio.execute_order(order, 500_000.0)
 
         assert result.status == OrderStatus.REJECTED
 
     def test_position_averaging(self, paper_portfolio):
-        buy1 = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test")
+        buy1 = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test"
+        )
         paper_portfolio.execute_order(buy1, 100.0, "Technology")
 
-        buy2 = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test")
+        buy2 = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test"
+        )
         paper_portfolio.execute_order(buy2, 200.0, "Technology")
 
         pos = paper_portfolio.positions["AAPL"]
@@ -259,7 +286,9 @@ class TestPaperPortfolio:
         assert abs(pos["avg_cost"] - 150.0) < 0.01
 
     def test_commission_applied(self, paper_portfolio):
-        order = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=100, reason="test")
+        order = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=100, reason="test"
+        )
         result = paper_portfolio.execute_order(order, 100.0)
 
         assert result.commission >= 1.0
@@ -267,7 +296,9 @@ class TestPaperPortfolio:
         assert abs(paper_portfolio.cash - expected_cash) < 0.01
 
     def test_portfolio_equity_updates(self, paper_portfolio):
-        order = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test")
+        order = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test"
+        )
         paper_portfolio.execute_order(order, 100.0, "Technology")
 
         paper_portfolio.positions["AAPL"]["current_price"] = 120.0
@@ -277,7 +308,9 @@ class TestPaperPortfolio:
         assert state.positions[0].unrealized_pnl > 0
 
     def test_order_history(self, paper_portfolio):
-        order = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test")
+        order = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test"
+        )
         paper_portfolio.execute_order(order, 100.0)
 
         assert len(paper_portfolio.orders) == 1
@@ -288,10 +321,13 @@ class TestPaperPortfolio:
 #  Risk Manager Tests
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class TestRiskManager:
     def test_position_size_limit(self, paper_portfolio):
         rm = RiskManager(RiskLimits(max_position_pct=0.10))
-        order = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=100, reason="test")
+        order = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=100, reason="test"
+        )
         # 100 shares at $150 = $15,000 = 15% > 10% limit
         check = rm.check_order(order, 150.0, paper_portfolio)
         assert not check.passed
@@ -299,7 +335,9 @@ class TestRiskManager:
 
     def test_position_within_limit(self, paper_portfolio):
         rm = RiskManager(RiskLimits(max_position_pct=0.20))
-        order = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test")
+        order = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test"
+        )
         # 10 shares at $150 = $1,500 = 1.5% < 20% limit
         check = rm.check_order(order, 150.0, paper_portfolio)
         assert check.passed
@@ -307,10 +345,20 @@ class TestRiskManager:
     def test_max_positions_limit(self, paper_portfolio):
         rm = RiskManager(RiskLimits(max_positions=2))
         # Add 2 positions
-        paper_portfolio.positions["AAPL"] = {"quantity": 10, "avg_cost": 100, "current_price": 100}
-        paper_portfolio.positions["MSFT"] = {"quantity": 10, "avg_cost": 100, "current_price": 100}
+        paper_portfolio.positions["AAPL"] = {
+            "quantity": 10,
+            "avg_cost": 100,
+            "current_price": 100,
+        }
+        paper_portfolio.positions["MSFT"] = {
+            "quantity": 10,
+            "avg_cost": 100,
+            "current_price": 100,
+        }
 
-        order = OrderRequest(ticker="GOOGL", side=OrderSide.BUY, quantity=5, reason="test")
+        order = OrderRequest(
+            ticker="GOOGL", side=OrderSide.BUY, quantity=5, reason="test"
+        )
         check = rm.check_order(order, 100.0, paper_portfolio)
         assert not check.passed
         assert not check.checks["max_positions"]
@@ -319,7 +367,9 @@ class TestRiskManager:
         rm = RiskManager(RiskLimits(max_daily_loss=1000))
         paper_portfolio.day_pnl = -1500  # Already lost $1500
 
-        order = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=1, reason="test")
+        order = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=1, reason="test"
+        )
         check = rm.check_order(order, 100.0, paper_portfolio)
         assert not check.passed
         assert not check.checks["daily_loss_limit"]
@@ -329,6 +379,7 @@ class TestRiskManager:
 #  Integration Tests
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class TestIntegration:
     def test_signal_to_trade_flow(self, trending_up, paper_portfolio):
         """Test the full signal → order → execution flow."""
@@ -337,8 +388,10 @@ class TestIntegration:
         if sig.signal == SignalType.BUY:
             shares = max(1, int(paper_portfolio.total_equity * 0.10 / sig.price))
             order = OrderRequest(
-                ticker="AAPL", side=OrderSide.BUY,
-                quantity=shares, reason=sig.reason,
+                ticker="AAPL",
+                side=OrderSide.BUY,
+                quantity=shares,
+                reason=sig.reason,
             )
             result = paper_portfolio.execute_order(order, sig.price, "Technology")
             assert result.status == OrderStatus.FILLED
@@ -346,10 +399,14 @@ class TestIntegration:
 
     def test_round_trip_trade(self, paper_portfolio):
         """Buy then sell, verify P&L accounting."""
-        buy = OrderRequest(ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test")
+        buy = OrderRequest(
+            ticker="AAPL", side=OrderSide.BUY, quantity=10, reason="test"
+        )
         paper_portfolio.execute_order(buy, 100.0, "Technology")
 
-        sell = OrderRequest(ticker="AAPL", side=OrderSide.SELL, quantity=10, reason="test")
+        sell = OrderRequest(
+            ticker="AAPL", side=OrderSide.SELL, quantity=10, reason="test"
+        )
         paper_portfolio.execute_order(sell, 110.0, "Technology")
 
         state = paper_portfolio.get_state()
@@ -361,7 +418,9 @@ class TestIntegration:
         tickers = [("AAPL", 150.0), ("MSFT", 300.0), ("GOOGL", 140.0)]
 
         for ticker, price in tickers:
-            order = OrderRequest(ticker=ticker, side=OrderSide.BUY, quantity=5, reason="test")
+            order = OrderRequest(
+                ticker=ticker, side=OrderSide.BUY, quantity=5, reason="test"
+            )
             result = paper_portfolio.execute_order(order, price, "Technology")
             assert result.status == OrderStatus.FILLED
 

@@ -17,7 +17,7 @@ import yfinance as yf
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional
 from datetime import datetime, timedelta
 from enum import Enum
 import logging
@@ -51,19 +51,23 @@ app.add_middleware(
 #  Enums & Pydantic Models
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class SignalType(str, Enum):
     BUY = "BUY"
     SELL = "SELL"
     HOLD = "HOLD"
 
+
 class OrderSide(str, Enum):
     BUY = "BUY"
     SELL = "SELL"
+
 
 class OrderStatus(str, Enum):
     FILLED = "FILLED"
     REJECTED = "REJECTED"
     PENDING = "PENDING"
+
 
 class StrategyName(str, Enum):
     MA_CROSSOVER = "ma_crossover"
@@ -83,15 +87,18 @@ class Signal(BaseModel):
     timestamp: str
     indicators: dict = {}
 
+
 class ScanRequest(BaseModel):
     tickers: list[str]
     strategy: StrategyName = StrategyName.COMBINED
+
 
 class OrderRequest(BaseModel):
     ticker: str
     side: OrderSide
     quantity: int = Field(gt=0, le=10000)
     reason: str = ""
+
 
 class Order(BaseModel):
     order_id: str
@@ -106,6 +113,7 @@ class Order(BaseModel):
     timestamp: str
     rejection_reason: str = ""
 
+
 class Position(BaseModel):
     ticker: str
     quantity: int
@@ -116,6 +124,7 @@ class Position(BaseModel):
     unrealized_pnl_pct: float
     weight: float
     day_change_pct: float
+
 
 class PortfolioState(BaseModel):
     cash: float
@@ -128,16 +137,19 @@ class PortfolioState(BaseModel):
     buying_power: float
     num_positions: int
 
+
 class RiskLimits(BaseModel):
     max_position_pct: float = 0.20
     max_daily_loss: float = 5000.0
     max_positions: int = 15
     stop_loss_pct: float = 0.08
 
+
 class RiskCheck(BaseModel):
     passed: bool
     checks: dict[str, bool]
     violations: list[str]
+
 
 class BacktestRequest(BaseModel):
     tickers: list[str]
@@ -147,6 +159,7 @@ class BacktestRequest(BaseModel):
     commission_pct: float = Field(default=0.001, ge=0, le=0.01)
     position_size_pct: float = Field(default=0.10, gt=0, le=0.5)
 
+
 class BacktestTrade(BaseModel):
     date: str
     ticker: str
@@ -154,6 +167,7 @@ class BacktestTrade(BaseModel):
     price: float
     quantity: int
     pnl: float = 0.0
+
 
 class BacktestResult(BaseModel):
     strategy: str
@@ -172,6 +186,7 @@ class BacktestResult(BaseModel):
     monthly_returns: list[dict]
     benchmark_return: float
 
+
 class QuoteResponse(BaseModel):
     ticker: str
     name: str
@@ -185,6 +200,7 @@ class QuoteResponse(BaseModel):
     dividend_yield: Optional[float] = None
     fifty_two_week_high: Optional[float] = None
     fifty_two_week_low: Optional[float] = None
+
 
 class WatchlistSignal(BaseModel):
     ticker: str
@@ -200,9 +216,11 @@ class WatchlistSignal(BaseModel):
     macd_histogram: Optional[float] = None
     bb_position: Optional[float] = None
 
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  Market Data Service
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class MarketDataService:
     CACHE_TTL = 300
@@ -304,9 +322,14 @@ class MarketDataService:
             return result
         except Exception:
             return {
-                "name": ticker, "sector": "Unknown", "industry": "Unknown",
-                "market_cap": 0, "pe_ratio": None, "dividend_yield": None,
-                "fifty_two_week_high": None, "fifty_two_week_low": None,
+                "name": ticker,
+                "sector": "Unknown",
+                "industry": "Unknown",
+                "market_cap": 0,
+                "pe_ratio": None,
+                "dividend_yield": None,
+                "fifty_two_week_high": None,
+                "fifty_two_week_low": None,
             }
 
 
@@ -315,6 +338,7 @@ mkt = MarketDataService()
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  Technical Analysis Library
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class TA:
     """Stateless technical indicator computations."""
@@ -354,7 +378,9 @@ class TA:
         return upper, sma, lower, pct_b
 
     @staticmethod
-    def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
+    def atr(
+        high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14
+    ) -> pd.Series:
         tr1 = high - low
         tr2 = (high - close.shift(1)).abs()
         tr3 = (low - close.shift(1)).abs()
@@ -366,11 +392,14 @@ class TA:
 #  Signal Engine — Strategy Implementations
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class SignalEngine:
     """Generates trading signals from technical indicators."""
 
     @staticmethod
-    def ma_crossover(close: pd.Series, fast: int = 20, slow: int = 50) -> tuple[SignalType, float, str, dict]:
+    def ma_crossover(
+        close: pd.Series, fast: int = 20, slow: int = 50
+    ) -> tuple[SignalType, float, str, dict]:
         sma_fast = TA.sma(close, fast)
         sma_slow = TA.sma(close, slow)
 
@@ -390,19 +419,41 @@ class SignalEngine:
         }
 
         if prev_fast <= prev_slow and fast_val > slow_val:
-            return SignalType.BUY, min(0.9, abs(spread_pct) * 20), f"SMA{fast} crossed above SMA{slow} — bullish crossover", indicators
+            return (
+                SignalType.BUY,
+                min(0.9, abs(spread_pct) * 20),
+                f"SMA{fast} crossed above SMA{slow} — bullish crossover",
+                indicators,
+            )
         if prev_fast >= prev_slow and fast_val < slow_val:
-            return SignalType.SELL, min(0.9, abs(spread_pct) * 20) * -1, f"SMA{fast} crossed below SMA{slow} — bearish crossover", indicators
+            return (
+                SignalType.SELL,
+                min(0.9, abs(spread_pct) * 20) * -1,
+                f"SMA{fast} crossed below SMA{slow} — bearish crossover",
+                indicators,
+            )
 
         if fast_val > slow_val:
-            return SignalType.BUY, min(0.6, spread_pct * 10), f"SMA{fast} above SMA{slow} — uptrend", indicators
+            return (
+                SignalType.BUY,
+                min(0.6, spread_pct * 10),
+                f"SMA{fast} above SMA{slow} — uptrend",
+                indicators,
+            )
         elif fast_val < slow_val:
-            return SignalType.SELL, max(-0.6, spread_pct * 10), f"SMA{fast} below SMA{slow} — downtrend", indicators
+            return (
+                SignalType.SELL,
+                max(-0.6, spread_pct * 10),
+                f"SMA{fast} below SMA{slow} — downtrend",
+                indicators,
+            )
 
         return SignalType.HOLD, 0.0, "Moving averages converging", indicators
 
     @staticmethod
-    def rsi_reversion(close: pd.Series, period: int = 14, oversold: float = 30, overbought: float = 70) -> tuple[SignalType, float, str, dict]:
+    def rsi_reversion(
+        close: pd.Series, period: int = 14, oversold: float = 30, overbought: float = 70
+    ) -> tuple[SignalType, float, str, dict]:
         rsi = TA.rsi(close, period)
 
         if rsi.iloc[-1] is np.nan:
@@ -410,24 +461,50 @@ class SignalEngine:
 
         rsi_val = float(rsi.iloc[-1])
         prev_rsi = float(rsi.iloc[-2]) if len(rsi) > 1 else rsi_val
-        indicators = {"rsi": round(rsi_val, 2), "oversold": oversold, "overbought": overbought}
+        indicators = {
+            "rsi": round(rsi_val, 2),
+            "oversold": oversold,
+            "overbought": overbought,
+        }
 
         if rsi_val < oversold:
             strength = min(1.0, (oversold - rsi_val) / oversold)
             if prev_rsi >= oversold:
-                return SignalType.BUY, strength, f"RSI({rsi_val:.1f}) entered oversold — reversal opportunity", indicators
-            return SignalType.BUY, strength * 0.7, f"RSI({rsi_val:.1f}) oversold — mean reversion expected", indicators
+                return (
+                    SignalType.BUY,
+                    strength,
+                    f"RSI({rsi_val:.1f}) entered oversold — reversal opportunity",
+                    indicators,
+                )
+            return (
+                SignalType.BUY,
+                strength * 0.7,
+                f"RSI({rsi_val:.1f}) oversold — mean reversion expected",
+                indicators,
+            )
 
         if rsi_val > overbought:
             strength = min(1.0, (rsi_val - overbought) / (100 - overbought))
             if prev_rsi <= overbought:
-                return SignalType.SELL, -strength, f"RSI({rsi_val:.1f}) entered overbought — pullback likely", indicators
-            return SignalType.SELL, -strength * 0.7, f"RSI({rsi_val:.1f}) overbought — reversion expected", indicators
+                return (
+                    SignalType.SELL,
+                    -strength,
+                    f"RSI({rsi_val:.1f}) entered overbought — pullback likely",
+                    indicators,
+                )
+            return (
+                SignalType.SELL,
+                -strength * 0.7,
+                f"RSI({rsi_val:.1f}) overbought — reversion expected",
+                indicators,
+            )
 
         return SignalType.HOLD, 0.0, f"RSI({rsi_val:.1f}) neutral", indicators
 
     @staticmethod
-    def bollinger_breakout(close: pd.Series, period: int = 20, std_dev: float = 2.0) -> tuple[SignalType, float, str, dict]:
+    def bollinger_breakout(
+        close: pd.Series, period: int = 20, std_dev: float = 2.0
+    ) -> tuple[SignalType, float, str, dict]:
         upper, mid, lower, pct_b = TA.bollinger_bands(close, period, std_dev)
 
         if pct_b.iloc[-1] is np.nan:
@@ -440,19 +517,41 @@ class SignalEngine:
         band_width = (upper_val - lower_val) / mid_val if mid_val != 0 else 0
 
         indicators = {
-            "bb_upper": round(upper_val, 2), "bb_mid": round(mid_val, 2),
-            "bb_lower": round(lower_val, 2), "bb_position": round(bb_pos, 3),
+            "bb_upper": round(upper_val, 2),
+            "bb_mid": round(mid_val, 2),
+            "bb_lower": round(lower_val, 2),
+            "bb_position": round(bb_pos, 3),
             "band_width": round(band_width * 100, 2),
         }
 
         if bb_pos < 0:
-            return SignalType.BUY, min(1.0, abs(bb_pos)), "Price below lower Bollinger Band — oversold bounce expected", indicators
+            return (
+                SignalType.BUY,
+                min(1.0, abs(bb_pos)),
+                "Price below lower Bollinger Band — oversold bounce expected",
+                indicators,
+            )
         if bb_pos > 1:
-            return SignalType.SELL, -min(1.0, bb_pos - 1), "Price above upper Bollinger Band — pullback expected", indicators
+            return (
+                SignalType.SELL,
+                -min(1.0, bb_pos - 1),
+                "Price above upper Bollinger Band — pullback expected",
+                indicators,
+            )
         if bb_pos < 0.2:
-            return SignalType.BUY, 0.4, f"Price near lower band ({bb_pos:.1%}) — approaching support", indicators
+            return (
+                SignalType.BUY,
+                0.4,
+                f"Price near lower band ({bb_pos:.1%}) — approaching support",
+                indicators,
+            )
         if bb_pos > 0.8:
-            return SignalType.SELL, -0.4, f"Price near upper band ({bb_pos:.1%}) — approaching resistance", indicators
+            return (
+                SignalType.SELL,
+                -0.4,
+                f"Price near upper band ({bb_pos:.1%}) — approaching resistance",
+                indicators,
+            )
 
         return SignalType.HOLD, 0.0, f"Price within bands ({bb_pos:.1%})", indicators
 
@@ -477,18 +576,43 @@ class SignalEngine:
         }
 
         if prev_hist <= 0 and hist_val > 0:
-            return SignalType.BUY, min(0.9, abs(norm_hist) * 200), "MACD bullish crossover — histogram turned positive", indicators
+            return (
+                SignalType.BUY,
+                min(0.9, abs(norm_hist) * 200),
+                "MACD bullish crossover — histogram turned positive",
+                indicators,
+            )
         if prev_hist >= 0 and hist_val < 0:
-            return SignalType.SELL, max(-0.9, -abs(norm_hist) * 200), "MACD bearish crossover — histogram turned negative", indicators
+            return (
+                SignalType.SELL,
+                max(-0.9, -abs(norm_hist) * 200),
+                "MACD bearish crossover — histogram turned negative",
+                indicators,
+            )
 
         if hist_val > 0:
             if hist_val > prev_hist:
-                return SignalType.BUY, min(0.6, norm_hist * 100), "MACD momentum increasing — bullish", indicators
+                return (
+                    SignalType.BUY,
+                    min(0.6, norm_hist * 100),
+                    "MACD momentum increasing — bullish",
+                    indicators,
+                )
             return SignalType.HOLD, 0.1, "MACD positive but momentum fading", indicators
         else:
             if hist_val < prev_hist:
-                return SignalType.SELL, max(-0.6, norm_hist * 100), "MACD momentum decreasing — bearish", indicators
-            return SignalType.HOLD, -0.1, "MACD negative but selling pressure fading", indicators
+                return (
+                    SignalType.SELL,
+                    max(-0.6, norm_hist * 100),
+                    "MACD momentum decreasing — bearish",
+                    indicators,
+                )
+            return (
+                SignalType.HOLD,
+                -0.1,
+                "MACD negative but selling pressure fading",
+                indicators,
+            )
 
     @staticmethod
     def combined_signal(close: pd.Series) -> tuple[SignalType, float, str, dict]:
@@ -517,11 +641,26 @@ class SignalEngine:
         all_indicators["sell_signals"] = sell_count
 
         if avg_strength > 0.15 and buy_count >= 2:
-            return SignalType.BUY, avg_strength, f"Consensus BUY ({buy_count}/4 agree). " + "; ".join(reasons[:2]), all_indicators
+            return (
+                SignalType.BUY,
+                avg_strength,
+                f"Consensus BUY ({buy_count}/4 agree). " + "; ".join(reasons[:2]),
+                all_indicators,
+            )
         if avg_strength < -0.15 and sell_count >= 2:
-            return SignalType.SELL, avg_strength, f"Consensus SELL ({sell_count}/4 agree). " + "; ".join(reasons[:2]), all_indicators
+            return (
+                SignalType.SELL,
+                avg_strength,
+                f"Consensus SELL ({sell_count}/4 agree). " + "; ".join(reasons[:2]),
+                all_indicators,
+            )
 
-        return SignalType.HOLD, avg_strength, f"Mixed signals ({buy_count} buy, {sell_count} sell) — no consensus", all_indicators
+        return (
+            SignalType.HOLD,
+            avg_strength,
+            f"Mixed signals ({buy_count} buy, {sell_count} sell) — no consensus",
+            all_indicators,
+        )
 
     @staticmethod
     def generate(ticker: str, close: pd.Series, strategy: StrategyName) -> Signal:
@@ -534,9 +673,14 @@ class SignalEngine:
         }
         sig, strength, reason, indicators = dispatch[strategy](close)
         return Signal(
-            ticker=ticker, strategy=strategy.value, signal=sig,
-            strength=round(strength, 4), price=round(float(close.iloc[-1]), 2),
-            reason=reason, timestamp=datetime.utcnow().isoformat(), indicators=indicators,
+            ticker=ticker,
+            strategy=strategy.value,
+            signal=sig,
+            strength=round(strength, 4),
+            price=round(float(close.iloc[-1]), 2),
+            reason=reason,
+            timestamp=datetime.utcnow().isoformat(),
+            indicators=indicators,
         )
 
 
@@ -544,11 +688,14 @@ class SignalEngine:
 #  Risk Manager
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class RiskManager:
     def __init__(self, limits: RiskLimits = None):
         self.limits = limits or RiskLimits()
 
-    def check_order(self, order: OrderRequest, price: float, portfolio: "PaperPortfolio") -> RiskCheck:
+    def check_order(
+        self, order: OrderRequest, price: float, portfolio: "PaperPortfolio"
+    ) -> RiskCheck:
         checks = {}
         violations = []
         order_value = price * order.quantity
@@ -559,7 +706,9 @@ class RiskManager:
             ok = pct <= self.limits.max_position_pct
             checks["position_size"] = ok
             if not ok:
-                violations.append(f"Position size {pct:.1%} exceeds {self.limits.max_position_pct:.0%} limit")
+                violations.append(
+                    f"Position size {pct:.1%} exceeds {self.limits.max_position_pct:.0%} limit"
+                )
         else:
             checks["position_size"] = True
 
@@ -568,7 +717,9 @@ class RiskManager:
             ok = portfolio.cash >= order_value * 1.001
             checks["buying_power"] = ok
             if not ok:
-                violations.append(f"Insufficient cash: need ${order_value:,.2f}, have ${portfolio.cash:,.2f}")
+                violations.append(
+                    f"Insufficient cash: need ${order_value:,.2f}, have ${portfolio.cash:,.2f}"
+                )
         else:
             checks["buying_power"] = True
 
@@ -578,7 +729,9 @@ class RiskManager:
             ok = pos is not None and pos["quantity"] >= order.quantity
             checks["position_exists"] = ok
             if not ok:
-                violations.append(f"Cannot sell {order.quantity} shares of {order.ticker}")
+                violations.append(
+                    f"Cannot sell {order.quantity} shares of {order.ticker}"
+                )
         else:
             checks["position_exists"] = True
 
@@ -587,7 +740,9 @@ class RiskManager:
             ok = len(portfolio.positions) < self.limits.max_positions
             checks["max_positions"] = ok
             if not ok:
-                violations.append(f"Max positions ({self.limits.max_positions}) reached")
+                violations.append(
+                    f"Max positions ({self.limits.max_positions}) reached"
+                )
         else:
             checks["max_positions"] = True
 
@@ -595,9 +750,13 @@ class RiskManager:
         ok = portfolio.day_pnl > -self.limits.max_daily_loss
         checks["daily_loss_limit"] = ok
         if not ok:
-            violations.append(f"Daily loss ${abs(portfolio.day_pnl):,.2f} exceeds limit")
+            violations.append(
+                f"Daily loss ${abs(portfolio.day_pnl):,.2f} exceeds limit"
+            )
 
-        return RiskCheck(passed=all(checks.values()), checks=checks, violations=violations)
+        return RiskCheck(
+            passed=all(checks.values()), checks=checks, violations=violations
+        )
 
 
 risk_mgr = RiskManager()
@@ -605,6 +764,7 @@ risk_mgr = RiskManager()
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  Paper Trading Portfolio
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class PaperPortfolio:
     COMMISSION_PER_SHARE = 0.005
@@ -633,7 +793,9 @@ class PaperPortfolio:
             for p in self.positions.values()
         )
 
-    def execute_order(self, order: OrderRequest, price: float, sector: str = "Unknown") -> Order:
+    def execute_order(
+        self, order: OrderRequest, price: float, sector: str = "Unknown"
+    ) -> Order:
         self._maybe_reset_day_pnl()
         commission = self._commission(order.quantity)
         total = price * order.quantity
@@ -641,9 +803,15 @@ class PaperPortfolio:
         risk = risk_mgr.check_order(order, price, self)
         if not risk.passed:
             return Order(
-                order_id=str(uuid.uuid4())[:8], ticker=order.ticker, side=order.side,
-                quantity=order.quantity, price=price, total=total, commission=commission,
-                status=OrderStatus.REJECTED, reason=order.reason,
+                order_id=str(uuid.uuid4())[:8],
+                ticker=order.ticker,
+                side=order.side,
+                quantity=order.quantity,
+                price=price,
+                total=total,
+                commission=commission,
+                status=OrderStatus.REJECTED,
+                reason=order.reason,
                 timestamp=datetime.utcnow().isoformat(),
                 rejection_reason="; ".join(risk.violations),
             )
@@ -653,12 +821,16 @@ class PaperPortfolio:
             if order.ticker in self.positions:
                 pos = self.positions[order.ticker]
                 new_qty = pos["quantity"] + order.quantity
-                pos["avg_cost"] = (pos["avg_cost"] * pos["quantity"] + price * order.quantity) / new_qty
+                pos["avg_cost"] = (
+                    pos["avg_cost"] * pos["quantity"] + price * order.quantity
+                ) / new_qty
                 pos["quantity"] = new_qty
             else:
                 self.positions[order.ticker] = {
-                    "quantity": order.quantity, "avg_cost": price,
-                    "sector": sector, "current_price": price,
+                    "quantity": order.quantity,
+                    "avg_cost": price,
+                    "sector": sector,
+                    "current_price": price,
                 }
         elif order.side == OrderSide.SELL:
             self.cash += total - commission
@@ -670,9 +842,15 @@ class PaperPortfolio:
                 del self.positions[order.ticker]
 
         result = Order(
-            order_id=str(uuid.uuid4())[:8], ticker=order.ticker, side=order.side,
-            quantity=order.quantity, price=price, total=total, commission=commission,
-            status=OrderStatus.FILLED, reason=order.reason,
+            order_id=str(uuid.uuid4())[:8],
+            ticker=order.ticker,
+            side=order.side,
+            quantity=order.quantity,
+            price=price,
+            total=total,
+            commission=commission,
+            status=OrderStatus.FILLED,
+            reason=order.reason,
             timestamp=datetime.utcnow().isoformat(),
         )
         self.orders.append(result.model_dump())
@@ -690,24 +868,35 @@ class PaperPortfolio:
             mkt_val = current * p["quantity"]
             upnl = mkt_val - cost_basis
 
-            pos_list.append(Position(
-                ticker=ticker, quantity=p["quantity"],
-                avg_cost=round(p["avg_cost"], 2), current_price=round(current, 2),
-                market_value=round(mkt_val, 2), unrealized_pnl=round(upnl, 2),
-                unrealized_pnl_pct=round(upnl / cost_basis, 4) if cost_basis != 0 else 0,
-                weight=round(mkt_val / equity, 4) if equity > 0 else 0,
-                day_change_pct=0.0,
-            ))
+            pos_list.append(
+                Position(
+                    ticker=ticker,
+                    quantity=p["quantity"],
+                    avg_cost=round(p["avg_cost"], 2),
+                    current_price=round(current, 2),
+                    market_value=round(mkt_val, 2),
+                    unrealized_pnl=round(upnl, 2),
+                    unrealized_pnl_pct=round(upnl / cost_basis, 4)
+                    if cost_basis != 0
+                    else 0,
+                    weight=round(mkt_val / equity, 4) if equity > 0 else 0,
+                    day_change_pct=0.0,
+                )
+            )
 
         total_pnl = equity - self.initial_cash
         return PortfolioState(
-            cash=round(self.cash, 2), total_equity=round(equity, 2),
+            cash=round(self.cash, 2),
+            total_equity=round(equity, 2),
             positions_value=round(positions_value, 2),
             total_pnl=round(total_pnl, 2),
-            total_pnl_pct=round(total_pnl / self.initial_cash, 4) if self.initial_cash > 0 else 0,
+            total_pnl_pct=round(total_pnl / self.initial_cash, 4)
+            if self.initial_cash > 0
+            else 0,
             day_pnl=round(self.day_pnl, 2),
             positions=sorted(pos_list, key=lambda x: x.market_value, reverse=True),
-            buying_power=round(self.cash, 2), num_positions=len(self.positions),
+            buying_power=round(self.cash, 2),
+            num_positions=len(self.positions),
         )
 
 
@@ -716,6 +905,7 @@ portfolio = PaperPortfolio(initial_cash=100_000)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  Backtesting Engine
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class Backtester:
     TRADING_DAYS = 252
@@ -741,18 +931,22 @@ class Backtester:
 
         warmup = 60
         if len(prices) < warmup + 10:
-            raise HTTPException(status_code=400, detail="Insufficient data for backtesting")
+            raise HTTPException(
+                status_code=400, detail="Insufficient data for backtesting"
+            )
 
         prev_equity = req.initial_capital
 
         for i in range(warmup, len(prices)):
             date = prices.index[i]
-            date_str = date.strftime("%Y-%m-%d") if hasattr(date, "strftime") else str(date)
+            date_str = (
+                date.strftime("%Y-%m-%d") if hasattr(date, "strftime") else str(date)
+            )
 
             for ticker in req.tickers:
                 if ticker not in prices.columns:
                     continue
-                close_series = prices[ticker].iloc[:i+1]
+                close_series = prices[ticker].iloc[: i + 1]
                 if close_series.isna().iloc[-1]:
                     continue
 
@@ -766,8 +960,20 @@ class Backtester:
                         cost = shares * price
                         commission = cost * req.commission_pct
                         cash -= cost + commission
-                        positions[ticker] = {"shares": shares, "entry_price": price, "entry_date": date_str}
-                        trades.append(BacktestTrade(date=date_str, ticker=ticker, side="BUY", price=round(price, 2), quantity=shares))
+                        positions[ticker] = {
+                            "shares": shares,
+                            "entry_price": price,
+                            "entry_date": date_str,
+                        }
+                        trades.append(
+                            BacktestTrade(
+                                date=date_str,
+                                ticker=ticker,
+                                side="BUY",
+                                price=round(price, 2),
+                                quantity=shares,
+                            )
+                        )
 
                 elif signal == SignalType.SELL and ticker in positions:
                     pos = positions[ticker]
@@ -775,7 +981,16 @@ class Backtester:
                     commission = revenue * req.commission_pct
                     pnl = revenue - (pos["shares"] * pos["entry_price"]) - commission
                     cash += revenue - commission
-                    trades.append(BacktestTrade(date=date_str, ticker=ticker, side="SELL", price=round(price, 2), quantity=pos["shares"], pnl=round(pnl, 2)))
+                    trades.append(
+                        BacktestTrade(
+                            date=date_str,
+                            ticker=ticker,
+                            side="SELL",
+                            price=round(price, 2),
+                            quantity=pos["shares"],
+                            pnl=round(pnl, 2),
+                        )
+                    )
                     del positions[ticker]
 
             equity = cash
@@ -797,9 +1012,17 @@ class Backtester:
 
         rf_daily = 0.05 / 252
         excess = rets - rf_daily
-        sharpe = float((excess.mean() / excess.std()) * np.sqrt(252)) if excess.std() > 0 else 0
+        sharpe = (
+            float((excess.mean() / excess.std()) * np.sqrt(252))
+            if excess.std() > 0
+            else 0
+        )
         downside = rets[rets < 0]
-        sortino = float((excess.mean() / downside.std()) * np.sqrt(252)) if len(downside) > 0 and downside.std() > 0 else 0
+        sortino = (
+            float((excess.mean() / downside.std()) * np.sqrt(252))
+            if len(downside) > 0 and downside.std() > 0
+            else 0
+        )
 
         cum = np.cumprod(1 + rets)
         peak = np.maximum.accumulate(cum)
@@ -816,7 +1039,9 @@ class Backtester:
         profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0
 
         bench = prices[mkt.BENCHMARK].dropna()
-        bench_ret = float(bench.iloc[-1] / bench.iloc[warmup] - 1) if len(bench) > warmup else 0
+        bench_ret = (
+            float(bench.iloc[-1] / bench.iloc[warmup] - 1) if len(bench) > warmup else 0
+        )
 
         monthly = {}
         for ec in equity_curve:
@@ -824,7 +1049,11 @@ class Backtester:
             if month not in monthly:
                 monthly[month] = {"start": ec["equity"]}
             monthly[month]["end"] = ec["equity"]
-        monthly_returns = [{"month": m, "return": round((v["end"] - v["start"]) / v["start"], 4)} for m, v in monthly.items() if v["start"] > 0]
+        monthly_returns = [
+            {"month": m, "return": round((v["end"] - v["start"]) / v["start"], 4)}
+            for m, v in monthly.items()
+            if v["start"] > 0
+        ]
 
         step = max(1, len(equity_curve) // 300)
         sampled = equity_curve[::step]
@@ -832,13 +1061,20 @@ class Backtester:
             sampled.append(equity_curve[-1])
 
         return BacktestResult(
-            strategy=req.strategy.value, total_return=round(total_return, 4),
-            annualized_return=round(ann_return, 4), sharpe_ratio=round(sharpe, 4),
-            sortino_ratio=round(sortino, 4), max_drawdown=round(max_dd, 4),
-            win_rate=round(win_rate, 4), total_trades=len(trades),
-            avg_win=round(avg_win, 2), avg_loss=round(avg_loss, 2),
-            profit_factor=round(profit_factor, 4), equity_curve=sampled,
-            trades=trades[-100:], monthly_returns=monthly_returns,
+            strategy=req.strategy.value,
+            total_return=round(total_return, 4),
+            annualized_return=round(ann_return, 4),
+            sharpe_ratio=round(sharpe, 4),
+            sortino_ratio=round(sortino, 4),
+            max_drawdown=round(max_dd, 4),
+            win_rate=round(win_rate, 4),
+            total_trades=len(trades),
+            avg_win=round(avg_win, 2),
+            avg_loss=round(avg_loss, 2),
+            profit_factor=round(profit_factor, 4),
+            equity_curve=sampled,
+            trades=trades[-100:],
+            monthly_returns=monthly_returns,
             benchmark_return=round(bench_ret, 4),
         )
 
@@ -848,21 +1084,39 @@ class Backtester:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 DEFAULT_WATCHLIST = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA",
-    "META", "TSLA", "JPM", "V", "JNJ",
-    "XOM", "PG", "HD", "BAC", "GS",
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "NVDA",
+    "META",
+    "TSLA",
+    "JPM",
+    "V",
+    "JNJ",
+    "XOM",
+    "PG",
+    "HD",
+    "BAC",
+    "GS",
 ]
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  API Endpoints
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat(), "portfolio_equity": portfolio.total_equity}
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "portfolio_equity": portfolio.total_equity,
+    }
 
 
 # ── Signals ──
+
 
 @app.post("/api/v1/signals/scan", response_model=list[Signal])
 async def scan_signals(request: ScanRequest):
@@ -889,22 +1143,39 @@ async def watchlist_signals(strategy: StrategyName = StrategyName.COMBINED):
 
             rsi_val = float(TA.rsi(close).iloc[-1]) if len(close) > 14 else None
             _, _, hist = TA.macd(close)
-            macd_h = float(hist.iloc[-1]) if len(hist) > 26 and not np.isnan(hist.iloc[-1]) else None
+            macd_h = (
+                float(hist.iloc[-1])
+                if len(hist) > 26 and not np.isnan(hist.iloc[-1])
+                else None
+            )
             _, _, _, pct_b = TA.bollinger_bands(close)
-            bb_pos = float(pct_b.iloc[-1]) if len(pct_b) > 20 and not np.isnan(pct_b.iloc[-1]) else None
+            bb_pos = (
+                float(pct_b.iloc[-1])
+                if len(pct_b) > 20 and not np.isnan(pct_b.iloc[-1])
+                else None
+            )
 
             price = float(close.iloc[-1])
             prev = float(close.iloc[-2]) if len(close) > 1 else price
 
-            results.append(WatchlistSignal(
-                ticker=ticker, name=info["name"], price=round(price, 2),
-                change_pct=round((price - prev) / prev, 4) if prev != 0 else 0,
-                sector=info["sector"], signal=sig.signal, strength=sig.strength,
-                strategy=sig.strategy, reason=sig.reason,
-                rsi=round(rsi_val, 2) if rsi_val and not np.isnan(rsi_val) else None,
-                macd_histogram=round(macd_h, 4) if macd_h else None,
-                bb_position=round(bb_pos, 3) if bb_pos else None,
-            ))
+            results.append(
+                WatchlistSignal(
+                    ticker=ticker,
+                    name=info["name"],
+                    price=round(price, 2),
+                    change_pct=round((price - prev) / prev, 4) if prev != 0 else 0,
+                    sector=info["sector"],
+                    signal=sig.signal,
+                    strength=sig.strength,
+                    strategy=sig.strategy,
+                    reason=sig.reason,
+                    rsi=round(rsi_val, 2)
+                    if rsi_val and not np.isnan(rsi_val)
+                    else None,
+                    macd_histogram=round(macd_h, 4) if macd_h else None,
+                    bb_position=round(bb_pos, 3) if bb_pos else None,
+                )
+            )
         except Exception as e:
             logger.warning(f"Watchlist failed for {ticker}: {e}")
 
@@ -918,18 +1189,31 @@ async def signal_detail(ticker: str, strategy: StrategyName = StrategyName.COMBI
     info = mkt.get_ticker_info(ticker)
 
     strategies_detail = {}
-    for strat in [StrategyName.MA_CROSSOVER, StrategyName.RSI_REVERSION, StrategyName.BOLLINGER_BREAKOUT, StrategyName.MACD_MOMENTUM]:
+    for strat in [
+        StrategyName.MA_CROSSOVER,
+        StrategyName.RSI_REVERSION,
+        StrategyName.BOLLINGER_BREAKOUT,
+        StrategyName.MACD_MOMENTUM,
+    ]:
         sig = SignalEngine.generate(ticker, close, strat)
         strategies_detail[strat.value] = sig.model_dump()
 
     combined = SignalEngine.generate(ticker, close, StrategyName.COMBINED)
-    price_history = [{"date": d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d), "close": round(float(v), 2)} for d, v in close.tail(120).items()]
+    price_history = [
+        {
+            "date": d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d),
+            "close": round(float(v), 2),
+        }
+        for d, v in close.tail(120).items()
+    ]
 
     sma_20 = TA.sma(close, 20).tail(120)
     sma_50 = TA.sma(close, 50).tail(120)
 
     return {
-        "ticker": ticker, "name": info["name"], "sector": info["sector"],
+        "ticker": ticker,
+        "name": info["name"],
+        "sector": info["sector"],
         "combined_signal": combined.model_dump(),
         "strategies": strategies_detail,
         "price_history": price_history,
@@ -941,6 +1225,7 @@ async def signal_detail(ticker: str, strategy: StrategyName = StrategyName.COMBI
 
 
 # ── Trading ──
+
 
 @app.post("/api/v1/trade/order", response_model=Order)
 async def place_order(order: OrderRequest):
@@ -956,7 +1241,9 @@ async def place_order(order: OrderRequest):
 
 
 @app.post("/api/v1/trade/signal-trade")
-async def trade_on_signal(ticker: str, strategy: StrategyName = StrategyName.COMBINED, shares: int = 0):
+async def trade_on_signal(
+    ticker: str, strategy: StrategyName = StrategyName.COMBINED, shares: int = 0
+):
     ohlcv = mkt.fetch_ohlcv(ticker, 120)
     close = ohlcv["Close"]
     price = float(close.iloc[-1])
@@ -970,14 +1257,21 @@ async def trade_on_signal(ticker: str, strategy: StrategyName = StrategyName.COM
         shares = max(1, int(portfolio.total_equity * 0.10 / price))
 
     if sig.signal == SignalType.BUY:
-        order = OrderRequest(ticker=ticker, side=OrderSide.BUY, quantity=shares, reason=sig.reason)
+        order = OrderRequest(
+            ticker=ticker, side=OrderSide.BUY, quantity=shares, reason=sig.reason
+        )
     else:
         pos = portfolio.positions.get(ticker)
         if pos:
             shares = min(shares, pos["quantity"])
-            order = OrderRequest(ticker=ticker, side=OrderSide.SELL, quantity=shares, reason=sig.reason)
+            order = OrderRequest(
+                ticker=ticker, side=OrderSide.SELL, quantity=shares, reason=sig.reason
+            )
         else:
-            return {"message": f"SELL signal but no position in {ticker}", "signal": sig.model_dump()}
+            return {
+                "message": f"SELL signal but no position in {ticker}",
+                "signal": sig.model_dump(),
+            }
 
     result = portfolio.execute_order(order, price, info["sector"])
     return {"signal": sig.model_dump(), "order": result.model_dump()}
@@ -985,12 +1279,15 @@ async def trade_on_signal(ticker: str, strategy: StrategyName = StrategyName.COM
 
 # ── Portfolio ──
 
+
 @app.get("/api/v1/portfolio", response_model=PortfolioState)
 async def get_portfolio():
     for ticker in list(portfolio.positions.keys()):
         try:
             ohlcv = mkt.fetch_ohlcv(ticker, 5)
-            portfolio.positions[ticker]["current_price"] = float(ohlcv["Close"].iloc[-1])
+            portfolio.positions[ticker]["current_price"] = float(
+                ohlcv["Close"].iloc[-1]
+            )
         except Exception:
             pass
     return portfolio.get_state()
@@ -1014,13 +1311,19 @@ async def portfolio_risk_summary():
     sector_weights: dict[str, float] = {}
     for pos in state.positions:
         info = mkt.get_ticker_info(pos.ticker)
-        sector_weights[info["sector"]] = sector_weights.get(info["sector"], 0) + pos.weight
+        sector_weights[info["sector"]] = (
+            sector_weights.get(info["sector"], 0) + pos.weight
+        )
 
     return {
         "total_equity": state.total_equity,
-        "cash_pct": round(state.cash / state.total_equity, 4) if state.total_equity > 0 else 1,
+        "cash_pct": round(state.cash / state.total_equity, 4)
+        if state.total_equity > 0
+        else 1,
         "num_positions": state.num_positions,
-        "max_position_weight": round(max((p.weight for p in state.positions), default=0), 4),
+        "max_position_weight": round(
+            max((p.weight for p in state.positions), default=0), 4
+        ),
         "sector_weights": {k: round(v, 4) for k, v in sector_weights.items()},
         "day_pnl": state.day_pnl,
         "total_pnl": state.total_pnl,
@@ -1031,12 +1334,14 @@ async def portfolio_risk_summary():
 
 # ── Backtesting ──
 
+
 @app.post("/api/v1/backtest", response_model=BacktestResult)
 async def run_backtest(request: BacktestRequest):
     return Backtester.run(request)
 
 
 # ── Market Data ──
+
 
 @app.get("/api/v1/market/quote/{ticker}", response_model=QuoteResponse)
 async def get_quote(ticker: str):
@@ -1048,12 +1353,16 @@ async def get_quote(ticker: str):
         prev = float(close.iloc[-2]) if len(close) > 1 else price
 
         return QuoteResponse(
-            ticker=ticker.upper(), name=info["name"], price=round(price, 2),
+            ticker=ticker.upper(),
+            name=info["name"],
+            price=round(price, 2),
             change=round(price - prev, 2),
             change_pct=round((price - prev) / prev, 4) if prev != 0 else 0,
             volume=int(ohlcv["Volume"].iloc[-1]) if "Volume" in ohlcv.columns else 0,
-            market_cap=info.get("market_cap", 0), sector=info["sector"],
-            pe_ratio=info.get("pe_ratio"), dividend_yield=info.get("dividend_yield"),
+            market_cap=info.get("market_cap", 0),
+            sector=info["sector"],
+            pe_ratio=info.get("pe_ratio"),
+            dividend_yield=info.get("dividend_yield"),
             fifty_two_week_high=info.get("fifty_two_week_high"),
             fifty_two_week_low=info.get("fifty_two_week_low"),
         )
@@ -1071,10 +1380,17 @@ async def get_history(ticker: str, days: int = Query(default=120, ge=5, le=1260)
     series = prices[ticker].dropna()
     return {
         "ticker": ticker.upper(),
-        "prices": [{"date": d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d), "close": round(float(v), 2)} for d, v in series.items()],
+        "prices": [
+            {
+                "date": d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d),
+                "close": round(float(v), 2),
+            }
+            for d, v in series.items()
+        ],
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
