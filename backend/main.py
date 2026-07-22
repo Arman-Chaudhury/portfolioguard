@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import logging
 import time
@@ -679,7 +679,7 @@ class SignalEngine:
             strength=round(strength, 4),
             price=round(float(close.iloc[-1]), 2),
             reason=reason,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             indicators=indicators,
         )
 
@@ -775,13 +775,13 @@ class PaperPortfolio:
         self.positions: dict[str, dict] = {}
         self.orders: list[dict] = []
         self.day_pnl = 0.0
-        self._last_reset_date = datetime.utcnow().date()
+        self._last_reset_date = datetime.now(timezone.utc).date()
 
     def _commission(self, quantity: int) -> float:
         return max(1.0, quantity * self.COMMISSION_PER_SHARE)
 
     def _maybe_reset_day_pnl(self):
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         if today != self._last_reset_date:
             self.day_pnl = 0.0
             self._last_reset_date = today
@@ -812,7 +812,7 @@ class PaperPortfolio:
                 commission=commission,
                 status=OrderStatus.REJECTED,
                 reason=order.reason,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
                 rejection_reason="; ".join(risk.violations),
             )
 
@@ -851,7 +851,7 @@ class PaperPortfolio:
             commission=commission,
             status=OrderStatus.FILLED,
             reason=order.reason,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
         self.orders.append(result.model_dump())
         return result
@@ -1110,7 +1110,7 @@ DEFAULT_WATCHLIST = [
 async def health():
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "portfolio_equity": portfolio.total_equity,
     }
 
