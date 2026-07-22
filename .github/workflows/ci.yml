@@ -66,11 +66,13 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - name: Build image
-        run: docker build -t portfolioguard:${{ github.sha }} .
+      - name: Build backend image
+        run: docker build -t portfolioguard-backend:${{ github.sha }} ./backend
+      - name: Build frontend image
+        run: docker build -t portfolioguard-frontend:${{ github.sha }} ./frontend
       - name: Run container smoke test
         run: |
-          docker run -d --name pg-test -p 8000:8000 portfolioguard:${{ github.sha }}
+          docker run -d --name pg-test -p 8000:8000 portfolioguard-backend:${{ github.sha }}
           sleep 5
           curl -f http://localhost:8000/health || exit 1
           docker stop pg-test

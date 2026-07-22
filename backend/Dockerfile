@@ -26,7 +26,6 @@ COPY --from=builder /install /usr/local
 
 # Copy application code
 COPY main.py .
-COPY tests/ tests/
 
 # Non-root user for security
 RUN useradd --create-home appuser
